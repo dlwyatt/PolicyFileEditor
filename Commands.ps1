@@ -35,11 +35,6 @@ function Set-PolicyFileEntry
     )
 
     $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
-    $existingEntry = $policyFile.GetValue($Key, $ValueName)
-
-    $dirty = $false
-
-    $dataToSet
 
     try
     {
