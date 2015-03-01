@@ -1,4 +1,5 @@
-Import-Module PolicyFileEditor -ErrorAction Stop
+Add-Type -Path $PSScriptRoot\..\..\PolFileEditor.dll -ErrorAction Stop
+. "$PSScriptRoot\..\..\Commands.ps1"
 
 function Get-TargetResource
 {
@@ -107,7 +108,7 @@ function Test-TargetResource
         if (-not $fileExists) { return $false }
         $entry = Get-PolicyFileEntry -Path $path -Key $key -ValueName $valueName
 
-        return $null -ne $entry -and $Type -eq $entry.Type -and (CompareData $entry.Data $Data -Type $Type)
+        return $null -ne $entry -and $Type -eq $entry.Type -and (DataIsEqual $entry.Data $Data -Type $Type)
     }
     else # Ensure is 'Absent'
     {
@@ -116,86 +117,6 @@ function Test-TargetResource
 
         return $null -eq $entry
     }
-}
-
-function GetPolFilePath
-{
-    param (
-        [string] $PolicyType
-    )
-
-    switch ($PolicyType)
-    {
-        'Machine'
-        {
-            return Join-Path $env:SystemRoot System32\GroupPolicy\Machine\registry.pol
-        }
-        
-        'User'
-        {
-            return Join-Path $env:SystemRoot System32\GroupPolicy\User\registry.pol
-        }
-
-        'Administrators'
-        {
-            # BUILTIN\Administrators well-known SID
-            return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-544\User\registry.pol
-        }
-
-        'NonAdministrators'
-        {
-            # BUILTIN\Users well-known SID
-            return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-545\User\registry.pol
-        }
-    }
-}
-
-function CompareData
-{
-    param (
-        [object] $First,
-        [object] $Second,
-        [Microsoft.Win32.RegistryValueKind] $Type
-    )
-
-    if ($Type -eq [Microsoft.Win32.RegistryValueKind]::String -or
-        $Type -eq [Microsoft.Win32.RegistryValueKind]::ExpandString -or
-        $Type -eq [Microsoft.Win32.RegistryValueKind]::DWord -or
-        $Type -eq [Microsoft.Win32.RegistryValueKind]::QWord)
-    {
-        return @($First)[0] -ceq @($Second)[0]
-    }
-
-    # If we get here, $Type is either MultiString or Binary, both of which need to compare arrays.
-    # The PolicyFileEditor module never returns type Unknown or None.
-
-    if ($First.Count -ne $Second.Count) { return $false }
-
-    $count = $first.Count
-    for ($i = 0; $i -lt $count; $i++)
-    {
-        if ($First[$i] -cne $Second[$i]) { return $false }
-    }
-
-    return $true
-}
-
-function ParseKeyValueName
-{
-    param ([string] $KeyValueName)
-
-    if ($KeyValueName.EndsWith('\'))
-    {
-        $key       = $KeyValueName -replace '\\$'
-        $valueName = ''
-    }
-    else
-    {
-        $key       = Split-Path $KeyValueName -Parent
-        $valueName = Split-Path $KeyValueName -Leaf
-    }
-
-    return $key, $valueName
 }
 
 Export-ModuleMember Get-TargetResource, Test-TargetResource, Set-TargetResource
