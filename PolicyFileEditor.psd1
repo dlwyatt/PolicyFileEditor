@@ -5,7 +5,7 @@
     Author                  = 'Dave Wyatt'
     CompanyName             = 'Home'
     Copyright               = '(c) 2015 Dave Wyatt. All rights reserved.'
-    # Description           = ''
+    Description             = 'Commands and DSC resource for modifying Administrative Templates settings in local GPO registry.pol files.'
     PowerShellVersion       = '2.0'
     # PowerShellHostName    = ''
     # PowerShellHostVersion = ''

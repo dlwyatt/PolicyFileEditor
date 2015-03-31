@@ -90,7 +90,7 @@ function GetEntryData
 
 function SavePolicyFile
 {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory = $true)]
         [TJX.PolFileEditor.PolFile] $PolicyFile,
@@ -98,32 +98,35 @@ function SavePolicyFile
         [switch] $UpdateGptIni
     )
 
-    $parentPath = Split-Path $PolicyFile.FileName -Parent
-    if (-not (Test-Path -LiteralPath $parentPath -PathType Container))
+    if ($PSCmdlet.ShouldProcess($PolicyFile.FileName, 'Save new settings'))
     {
+        $parentPath = Split-Path $PolicyFile.FileName -Parent
+        if (-not (Test-Path -LiteralPath $parentPath -PathType Container))
+        {
+            try
+            {
+                $null = New-Item -Path $parentPath -ItemType Directory -ErrorAction Stop -Confirm:$false -WhatIf:$false
+            }
+            catch
+            {
+                $errorRecord = $_
+                $message = "Error creating parent folder of path '$Path': $($errorRecord.Exception.Message)"
+                $exception = New-Object System.Exception($message, $errorRecord.Exception)
+                throw $exception
+            }
+        }
+
         try
         {
-            $null = New-Item -Path $parentPath -ItemType Directory -ErrorAction Stop
+            $PolicyFile.SaveFile()
         }
         catch
         {
             $errorRecord = $_
-            $message = "Error creating parent folder of path '$Path': $($errorRecord.Exception.Message)"
+            $message = "Error saving policy file to path '$($PolicyFile.FileName)': $($errorRecord.Exception.Message)"
             $exception = New-Object System.Exception($message, $errorRecord.Exception)
             throw $exception
         }
-    }
-
-    try
-    {
-        $PolicyFile.SaveFile()
-    }
-    catch
-    {
-        $errorRecord = $_
-        $message = "Error saving policy file to path '$($PolicyFile.FileName)': $($errorRecord.Exception.Message)"
-        $exception = New-Object System.Exception($message, $errorRecord.Exception)
-        throw $exception
     }
 
     if ($UpdateGptIni)
@@ -135,7 +138,10 @@ function SavePolicyFile
 
             if (Test-Path -LiteralPath $iniPath -PathType Leaf)
             {
-                IncrementGptIniVersion -Path $iniPath -PolicyType $Matches[2]
+                if ($PSCmdlet.ShouldProcess($iniPath, 'Increment version number in INI file'))
+                {
+                    IncrementGptIniVersion -Path $iniPath -PolicyType $Matches[2] -Confirm:$false -WhatIf:$false
+                }
             }
             else
             {
@@ -147,6 +153,7 @@ function SavePolicyFile
 
 function IncrementGptIniVersion
 {
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [string] $Path,
         [string[]] $PolicyType
@@ -236,7 +243,10 @@ function IncrementGptIniVersion
         }
     )
 
-    Set-Content -Path $Path -Value $newContents -Encoding Ascii
+    if ($PSCmdlet.ShouldProcess($Path, 'Increment Version number'))
+    {
+        Set-Content -Path $Path -Value $newContents -Encoding Ascii -Confirm:$false -WhatIf:$false
+    }
 }
 
 function EnsureAdminTemplateCseGuidsArePresent

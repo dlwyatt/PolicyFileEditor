@@ -67,7 +67,7 @@ $scriptRoot = Split-Path $MyInvocation.MyCommand.Path
 
 function Set-PolicyFileEntry
 {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory = $true, Position = 0)]
         [string] $Path,
@@ -105,6 +105,11 @@ function Set-PolicyFileEntry
 
     begin
     {
+        if (Get-Command [G]et-CallerPreference -CommandType Function -Module PreferenceVariables)
+        {
+            Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
+        }
+
         $dirty = $false
         $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
     }
@@ -214,10 +219,12 @@ function Set-PolicyFileEntry
 
     end
     {
-        $doUpdateGptIni = -not $NoGptIniUpdate
         if ($dirty)
         {
-            Write-Verbose "File '$Path' has been modified in memory, and will now be saved to disk."
+            $doUpdateGptIni = -not $NoGptIniUpdate
+
+            # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
+            # WhatIfPreference / ConfirmPreference values from here.
             SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
         }
     }
@@ -280,6 +287,11 @@ function Get-PolicyFileEntry
         [Parameter(Mandatory = $true, ParameterSetName = 'All')]
         [switch] $All
     )
+
+    if (Get-Command [G]et-CallerPreference -CommandType Function -Module PreferenceVariables)
+    {
+        Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
+    }
 
     $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
 
@@ -352,7 +364,7 @@ function Get-PolicyFileEntry
 
 function Remove-PolicyFileEntry
 {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory = $true, Position = 0)]
         [string] $Path,
@@ -368,6 +380,11 @@ function Remove-PolicyFileEntry
 
     begin
     {
+        if (Get-Command [G]et-CallerPreference -CommandType Function -Module PreferenceVariables)
+        {
+            Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
+        }
+
         $dirty = $false
         $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
     }
@@ -392,6 +409,9 @@ function Remove-PolicyFileEntry
         if ($dirty)
         {
             $doUpdateGptIni = -not $NoGptIniUpdate
+
+            # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
+            # WhatIfPreference / ConfirmPreference values from here.
             SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
         }
     }
@@ -439,7 +459,7 @@ function Remove-PolicyFileEntry
 
 function Update-GptIniVersion
 {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory = $true)]
         [ValidateScript({
@@ -456,6 +476,11 @@ function Update-GptIniVersion
         [ValidateSet('Machine', 'User')]
         [string[]] $PolicyType
     )
+
+    if (Get-Command [G]et-CallerPreference -CommandType Function -Module PreferenceVariables)
+    {
+        Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
+    }
 
     IncrementGptIniVersion @PSBoundParameters
 }
