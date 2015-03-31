@@ -33,8 +33,24 @@ $scriptRoot = Split-Path $MyInvocation.MyCommand.Path
    Set-PolicyFileEntry -Path $env:systemroot\system32\GroupPolicy\Machine\registry.pol -Key Software\Policies\Something -ValueName SomeValue -Data '0x12345' -Type DWord
 
    Example demonstrating that strings with valid numeric data (including hexadecimal strings beginning with 0x) can be assigned to the numeric types DWord, QWord and Binary.
+.EXAMPLE
+   $entries = @(
+       New-Object psobject -Property @{ ValueName = 'MaxXResolution'; Data = 1680 }
+       New-Object psobject -Property @{ ValueName = 'MaxYResolution'; Data = 1050 }
+   )
+
+   $entries | Set-PolicyFileEntry -Path $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
+                                  -Key  'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
+                                  -Type DWord
+
+   Example of using pipeline input to set multiple values at once.  The advantage to this approach is that the
+   .pol file on disk (and the GPT.ini file) will be updated if _any_ of the specified settings had to be modified,
+   and will be left alone if the file already contained all of the correct values.
+
+   The Key and Type properties could have also been specified via the pipeline objects instead of on the command line,
+   but since both values shared the same Key and Type, this example shows that you can pass the values in either way.
 .INPUTS
-   None.  This command does not accept pipeline input.
+   The Key, ValueName, Data, and Type properties may be bound via the pipeline by property name.
 .OUTPUTS
    None.  This command does not generate output.
 .NOTES
@@ -56,18 +72,19 @@ function Set-PolicyFileEntry
         [Parameter(Mandatory = $true, Position = 0)]
         [string] $Path,
 
-        [Parameter(Mandatory = $true, Position = 1)]
+        [Parameter(Mandatory = $true, Position = 1, ValueFromPipelineByPropertyName = $true)]
         [string] $Key,
 
-        [Parameter(Mandatory = $true, Position = 2)]
+        [Parameter(Mandatory = $true, Position = 2, ValueFromPipelineByPropertyName = $true)]
         [AllowEmptyString()]
         [string] $ValueName,
 
-        [Parameter(Mandatory = $true, Position = 3)]
+        [Parameter(Mandatory = $true, Position = 3, ValueFromPipelineByPropertyName = $true)]
         [AllowEmptyString()]
         [AllowEmptyCollection()]
         [object] $Data,
 
+        [Parameter(ValueFromPipelineByPropertyName = $true)]
         [ValidateScript({
             if ($_ -eq [Microsoft.Win32.RegistryValueKind]::Unknown)
             {
@@ -86,104 +103,123 @@ function Set-PolicyFileEntry
         [switch] $NoGptIniUpdate
     )
 
-    $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
-    $existingEntry = $policyFile.GetValue($key, $ValueName)
-
-    if ($null -ne $existingEntry -and $Type -eq (PolEntryTypeToRegistryValueKind $existingEntry.Type))
+    begin
     {
-        $existingData = GetEntryData -Entry $existingEntry -Type $Type
-        if (DataIsEqual $Data $existingData -Type $Type)
+        $dirty = $false
+        $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+    }
+
+    process
+    {
+        $existingEntry = $policyFile.GetValue($Key, $ValueName)
+
+        if ($null -ne $existingEntry -and $Type -eq (PolEntryTypeToRegistryValueKind $existingEntry.Type))
         {
-            Write-Verbose 'Specified policy setting is already configured.  No changes were made.'
-            return
+            $existingData = GetEntryData -Entry $existingEntry -Type $Type
+            if (DataIsEqual $Data $existingData -Type $Type)
+            {
+                Write-Verbose "Policy setting '$Key\$ValueName' is already set to '$Data' of type '$Type'."
+                return
+            }
+        }
+
+        Write-Verbose "Configuring '$Key\$ValueName' to value '$Data' of type '$Type'."
+
+        try
+        {
+            switch ($Type)
+            {
+                ([Microsoft.Win32.RegistryValueKind]::Binary)
+                {
+                    $bytes = $Data -as [byte[]]
+                    if ($null -eq $bytes)
+                    {
+                        throw 'When -Type is set to Binary, -Data must be passed a Byte[] array.'
+                    }
+                    else
+                    {
+                        $policyFile.SetBinaryValue($Key, $ValueName, $bytes)
+                    }
+
+                    break
+                }
+
+                ([Microsoft.Win32.RegistryValueKind]::String)
+                {
+                    $string = $Data.ToString()
+                    $policyFile.SetStringValue($Key, $ValueName, $string)
+                    break
+                }
+
+                ([Microsoft.Win32.RegistryValueKind]::ExpandString)
+                {
+                    $string = $Data.ToString()
+                    $policyFile.SetStringValue($Key, $ValueName, $string, $true)
+                    break
+                }
+
+                ([Microsoft.Win32.RegistryValueKind]::DWord)
+                {
+                    $dword = $Data -as [UInt32]
+                    if ($null -eq $dword)
+                    {
+                        throw 'When -Type is set to DWord, -Data must be passed a valid UInt32 value.'
+                    }
+                    else
+                    {
+                        $policyFile.SetDWORDValue($key, $ValueName, $dword)
+                    }
+
+                    break
+                }
+
+                ([Microsoft.Win32.RegistryValueKind]::QWord)
+                {
+                    $qword = $Data -as [UInt64]
+                    if ($null -eq $qword)
+                    {
+                        throw 'When -Type is set to QWord, -Data must be passed a valid UInt64 value.'
+                    }
+                    else
+                    {
+                        $policyFile.SetQWORDValue($key, $ValueName, $qword)
+                    }
+
+                    break
+                }
+
+                ([Microsoft.Win32.RegistryValueKind]::MultiString)
+                {
+                    $strings = [string[]] @(
+                        foreach ($item in $data)
+                        {
+                            $item.ToString()
+                        }
+                    )
+
+                    $policyFile.SetMultiStringValue($Key, $ValueName, $strings)
+
+                    break
+                }
+
+            } # switch ($Type)
+
+            $dirty = $true
+        }
+        catch
+        {
+            throw
         }
     }
 
-    try
+    end
     {
-        switch ($Type)
-        {
-            ([Microsoft.Win32.RegistryValueKind]::Binary)
-            {
-                $bytes = $Data -as [byte[]]
-                if ($null -eq $bytes)
-                {
-                    throw 'When -Type is set to Binary, -Data must be passed a Byte[] array.'
-                }
-                else
-                {
-                    $policyFile.SetBinaryValue($Key, $ValueName, $bytes)
-                }
-
-                break
-            }
-
-            ([Microsoft.Win32.RegistryValueKind]::String)
-            {
-                $string = $Data.ToString()
-                $policyFile.SetStringValue($Key, $ValueName, $string)
-                break
-            }
-
-            ([Microsoft.Win32.RegistryValueKind]::ExpandString)
-            {
-                $string = $Data.ToString()
-                $policyFile.SetStringValue($Key, $ValueName, $string, $true)
-                break
-            }
-
-            ([Microsoft.Win32.RegistryValueKind]::DWord)
-            {
-                $dword = $Data -as [UInt32]
-                if ($null -eq $dword)
-                {
-                    throw 'When -Type is set to DWord, -Data must be passed a valid UInt32 value.'
-                }
-                else
-                {
-                    $policyFile.SetDWORDValue($key, $ValueName, $dword)
-                }
-
-                break
-            }
-
-            ([Microsoft.Win32.RegistryValueKind]::QWord)
-            {
-                $qword = $Data -as [UInt64]
-                if ($null -eq $qword)
-                {
-                    throw 'When -Type is set to QWord, -Data must be passed a valid UInt64 value.'
-                }
-                else
-                {
-                    $policyFile.SetQWORDValue($key, $ValueName, $qword)
-                }
-
-                break
-            }
-
-            ([Microsoft.Win32.RegistryValueKind]::MultiString)
-            {
-                $strings = [string[]] @(
-                    foreach ($item in $data)
-                    {
-                        $item.ToString()
-                    }
-                )
-
-                $policyFile.SetMultiStringValue($Key, $ValueName, $strings)
-
-                break
-            }
-
-        } # switch ($Type)
-
         $doUpdateGptIni = -not $NoGptIniUpdate
-        SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
-    }
-    catch
-    {
-        throw
+        if ($dirty)
+        {
+            Write-Verbose "File '$Path' has been modified in memory, and will now be saved to disk."
+            SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+        }
     }
 }
 
@@ -282,8 +318,24 @@ function Get-PolicyFileEntry
    Remove-PolicyFileEntry -Path $env:systemroot\system32\GroupPolicy\Machine\registry.pol -Key Software\Policies\Something -ValueName SomeValue
 
    Removes the value Software\Policies\Something\SomeValue from the local computer Machine GPO, if present.  Updates the Machine version counter in $env:systemroot\system32\GroupPolicy\gpt.ini
+.EXAMPLE
+   $entries = @(
+       New-Object psobject -Property @{ ValueName = 'MaxXResolution'; Data = 1680 }
+       New-Object psobject -Property @{ ValueName = 'MaxYResolution'; Data = 1050 }
+   )
+
+   $entries | Remove-PolicyFileEntry -Path $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
+                                     -Key 'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+
+   Example of using pipeline input to remove multiple values at once.  The advantage to this approach is that the
+   .pol file on disk (and the GPT.ini file) will be updated if _any_ of the specified settings had to be removed,
+   and will be left alone if the file already did not contain any of those values.
+
+   The Key property could have also been specified via the pipeline objects instead of on the command line, but
+   since both values shared the same Key, this example shows that you can pass the value in either way.
+
 .INPUTS
-   None.  This command does not accept pipeline input.
+   The Key and ValueName properties may be bound via the pipeline by property name.
 .OUTPUTS
    None.  This command does not generate output.
 .NOTES
@@ -305,27 +357,44 @@ function Remove-PolicyFileEntry
         [Parameter(Mandatory = $true, Position = 0)]
         [string] $Path,
 
-        [Parameter(Mandatory = $true, Position = 1)]
+        [Parameter(Mandatory = $true, Position = 1, ValueFromPipelineByPropertyName = $true)]
         [string] $Key,
 
-        [Parameter(Mandatory = $true, Position = 2)]
+        [Parameter(Mandatory = $true, Position = 2, ValueFromPipelineByPropertyName = $true)]
         [string] $ValueName,
 
         [switch] $NoGptIniUpdate
     )
 
-    $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
-    $entry = $policyFile.GetValue($Key, $ValueName)
-
-    if ($null -eq $entry)
+    begin
     {
-        Write-Verbose 'Specified policy setting already does not exist.  No changes were made.'
-        return
+        $dirty = $false
+        $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
     }
 
-    $policyFile.DeleteValue($Key, $ValueName)
-    $doUpdateGptIni = -not $NoGptIniUpdate
-    SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+    process
+    {
+        $entry = $policyFile.GetValue($Key, $ValueName)
+
+        if ($null -eq $entry)
+        {
+            Write-Verbose "Entry '$Key\$ValueName' is already not present in file '$Path'."
+            return
+        }
+
+        Write-Verbose "Removing entry '$Key\$ValueName' from file '$Path'"
+        $policyFile.DeleteValue($Key, $ValueName)
+        $dirty = $true
+    }
+
+    end
+    {
+        if ($dirty)
+        {
+            $doUpdateGptIni = -not $NoGptIniUpdate
+            SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+        }
+    }
 }
 
 <#

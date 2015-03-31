@@ -103,39 +103,72 @@ try
                     PolicyType       = 'Machine'
                     ExpectedVersions = '65538', '65539' # (1 -shl 16) + 2, (1 -shl 16) + 2
                     NoGptIniUpdate   = $false
+                    Count            = 1
                 }
 
                 @{
                     PolicyType       = 'User'
                     ExpectedVersions = '131073', '196609' # (2 -shl 16) + 1, (3 -shl 16) + 1
                     NoGptIniUpdate   = $false
+                    Count            = 1
                 }
 
                 @{
                     PolicyType       = 'Machine'
                     ExpectedVersions = '65537', '65537' # (1 -shl 16) + 1, (1 -shl 16) + 1
                     NoGptIniUpdate   = $true
+                    Count            = 1
                 }
 
                 @{
                     PolicyType       = 'User'
                     ExpectedVersions = '65537', '65537' # (1 -shl 16) + 1, (1 -shl 16) + 1
                     NoGptIniUpdate   = $true
+                    Count            = 1
+                }
+
+                @{
+                    PolicyType       = 'User'
+                    ExpectedVersions = '131073', '196609' # (2 -shl 16) + 1, (3 -shl 16) + 1
+                    NoGptIniUpdate   = $false
+                    Count            = 2
+                    EntriesToModify  = @(
+                        New-Object psobject -Property @{
+                            Key       = 'Software\Testing'
+                            ValueName = 'Value1'
+                            Type      = 'String'
+                            Data      = 'Data'
+                        }
+
+                        New-Object psobject -Property @{
+                            Key       = 'Software\Testing'
+                            ValueName = 'Value2'
+                            Type      = 'String'
+                            Data      = 'Data'
+                        }
+                    )
                 }
             )
 
-            It 'Behaves properly modifying a <PolicyType> registry.pol file and NoGptIniUpdate is <NoGptIniUpdate>' -TestCases $testCases {
-                param ($PolicyType, [string[]] $ExpectedVersions, [switch] $NoGptIniUpdate)
+            It 'Behaves properly modifying <Count> entries in a <PolicyType> registry.pol file and NoGptIniUpdate is <NoGptIniUpdate>' -TestCases $testCases {
+                param ($PolicyType, [string[]] $ExpectedVersions, [switch] $NoGptIniUpdate, [object[]] $EntriesToModify)
+
+                if (-not $PSBoundParameters.ContainsKey('EntriesToModify'))
+                {
+                    $EntriesToModify = @(
+                        New-Object psobject -Property @{
+                            Key       = 'Software\Testing'
+                            ValueName = 'TestValue'
+                            Data      = 1
+                            Type      = 'DWord'
+                        }
+                    )
+                }
 
                 $polPath = Join-Path $gpoPath $PolicyType\registry.pol
 
                 $scriptBlock = {
-                    Set-PolicyFileEntry -Path           $polPath `
-                                        -Key            Software\Testing `
-                                        -ValueName      TestValue `
-                                        -Data           1 `
-                                        -Type           DWord `
-                                        -NoGptIniUpdate:$NoGptIniUpdate
+                    $EntriesToModify | Set-PolicyFileEntry -Path $polPath -NoGptIniUpdate:$NoGptIniUpdate
                 }
 
                 # We do this next block of code twice to ensure that when "setting" a value that is already present in the
@@ -157,12 +190,18 @@ try
 
                 $entries = @(Get-PolicyFileEntry -Path $PolPath -All)
 
-                $entries.Count | Should Be 1
+                $entries.Count | Should Be $EntriesToModify.Count
 
-                $entries[0].ValueName | Should Be TestValue
-                $entries[0].Key | Should Be Software\Testing
-                $entries[0].Data | Should Be 1
-                $entries[0].Type | Should Be ([Microsoft.Win32.RegistryValueKind]::DWord)
+                $count = $entries.Count
+                for ($i = 0; $i -lt $count; $i++)
+                {
+                    $matchingEntry = $EntriesToModify | Where-Object { $_.Key -eq $entries[$i].Key -and $_.ValueName -eq $entries[$i].ValueName }
+
+                    $entries[$i].ValueName | Should Be $matchingEntry.ValueName
+                    $entries[$i].Key | Should Be $matchingEntry.Key
+                    $entries[$i].Data | Should Be $matchingEntry.Data
+                    $entries[$i].Type | Should Be $matchingEntry.Type
+                }
 
                 $scriptBlock | Should Not Throw
 
@@ -176,22 +215,42 @@ try
 
                 $entries = @(Get-PolicyFileEntry -Path $polPath -All)
 
-                $entries.Count | Should Be 1
+                $entries.Count | Should Be $EntriesToModify.Count
 
-                $entries[0].ValueName | Should Be TestValue
-                $entries[0].Key | Should Be Software\Testing
-                $entries[0].Data | Should Be 1
-                $entries[0].Type | Should Be ([Microsoft.Win32.RegistryValueKind]::DWord)
+                $count = $entries.Count
+                for ($i = 0; $i -lt $count; $i++)
+                {
+                    $matchingEntry = $EntriesToModify | Where-Object { $_.Key -eq $entries[$i].Key -and $_.ValueName -eq $entries[$i].ValueName }
+
+                    $entries[$i].ValueName | Should Be $matchingEntry.ValueName
+                    $entries[$i].Key | Should Be $matchingEntry.Key
+                    $entries[$i].Data | Should Be $matchingEntry.Data
+                    $entries[$i].Type | Should Be $matchingEntry.Type
+                }
 
                 # End of duplicated bits; now we make sure that removing the entry
                 # works, and still updates the gpt.ini version (if appropriate.)
 
                 $scriptBlock = {
-                    Remove-PolicyFileEntry -Path           $polPath `
-                                           -Key            Software\Testing `
-                                           -ValueName      TestValue `
-                                           -NoGptIniUpdate:$NoGptIniUpdate
+                    $EntriesToModify | Remove-PolicyFileEntry -Path $polPath -NoGptIniUpdate:$NoGptIniUpdate
                 }
+
+                $scriptBlock | Should Not Throw
+
+                $expected = $ExpectedVersions[1]
+                $version = @(GetGptIniVersion -Path $gptIniPath)
+
+                $version.Count | Should Be 1
+                $actual = $version[0]
+
+                $actual | Should Be $expected
+
+                $entries = @(Get-PolicyFileEntry -Path $polPath -All)
+
+                $entries.Count | Should Be 0
+
+                # Duplicate the Remove block for the same reasons; make sure the ini file isn't incremented
+                # when the value is already missing.
 
                 $scriptBlock | Should Not Throw
 

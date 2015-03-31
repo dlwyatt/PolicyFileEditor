@@ -42,17 +42,14 @@ TOPIC
 
    Armed with that information, you can now do something like this using the PolicyFileEditor module:
 
-   Set-PolicyFileEntry -Path      $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
-                       -Key       'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
-                       -ValueName MaxXResolution `
-                       -Type      DWord `
-                       -Data      1680
+   $entries = @(
+       New-Object psobject -Property @{ ValueName = 'MaxXResolution'; Data = 1680 }
+       New-Object psobject -Property @{ ValueName = 'MaxYResolution'; Data = 1050 }
+   )
 
-   Set-PolicyFileEntry -Path      $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
-                       -Key       'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
-                       -ValueName MaxYResolution `
-                       -Type      DWord `
-                       -Data      1050
+   $entries | Set-PolicyFileEntry -Path $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
+                                  -Key  'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
+                                  -Type DWord
 
 SEE ALSO
     Protect-Data
