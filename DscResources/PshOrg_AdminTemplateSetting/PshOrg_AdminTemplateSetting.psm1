@@ -56,22 +56,24 @@ function Set-TargetResource
         [Microsoft.Win32.RegistryValueKind] $Type = [Microsoft.Win32.RegistryValueKind]::String
     )
 
+    if ($null -eq $Data) { $Data = @() }
+
+    try
+    {
+        Assert-ValidDataAndType -Data $Data -Type $Type
+    }
+    catch
+    {
+        Write-Error -ErrorRecord $_
+        return
+    }
+
     $path = GetPolFilePath -PolicyType $PolicyType
     $key, $valueName = ParseKeyValueName $KeyValueName
 
-    if ($Type -eq [Microsoft.Win32.RegistryValueKind]::MultiString -or
-        $Type -eq [Microsoft.Win32.RegistryValueKind]::Binary)
-    {
-        $dataToSet = $Data
-    }
-    else
-    {
-        $dataToSet = $Data[0]
-    }
-
     if ($Ensure -eq 'Present')
     {
-        Set-PolicyFileEntry -Path $path -Key $key -ValueName $valueName -Data $dataToSet -Type $Type
+        Set-PolicyFileEntry -Path $path -Key $key -ValueName $valueName -Data $Data -Type $Type
     }
     else
     {
@@ -98,6 +100,18 @@ function Test-TargetResource
         [Microsoft.Win32.RegistryValueKind] $Type = [Microsoft.Win32.RegistryValueKind]::String
     )
 
+    if ($null -eq $Data) { $Data = @() }
+
+    try
+    {
+        Assert-ValidDataAndType -Data $Data -Type $Type
+    }
+    catch
+    {
+        Write-Error -ErrorRecord $_
+        return
+    }
+
     $path = GetPolFilePath -PolicyType $PolicyType
     $key, $valueName = ParseKeyValueName $KeyValueName
 
@@ -117,6 +131,22 @@ function Test-TargetResource
 
         return $null -eq $entry
     }
+}
+
+function Assert-ValidDataAndType
+{
+    param (
+        [string[]] $Data,
+        [Microsoft.Win32.RegistryValueKind] $Type
+    )
+
+    if ($Type -ne [Microsoft.Win32.RegistryValueKind]::MultiString -and
+        $Type -ne [Microsoft.Win32.RegistryValueKind]::Binary -and
+        $Data.Count -gt 1)
+    {
+        throw 'Do not pass arrays with multiple values to the -Data parameter when -Type is not set to either Binary or MultiString.'
+    }
+
 }
 
 Export-ModuleMember Get-TargetResource, Test-TargetResource, Set-TargetResource

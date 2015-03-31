@@ -1,0 +1,63 @@
+TOPIC
+    about_RegistryValuesForAdminTemplates
+
+   The PolicyFileEditor module allows you to modify the contents of registry.pol and gpt.ini files
+   in local GPOs.  These .pol files correspond to the settings found under Administrative Templates
+   in the Group Policy Object Editor console.  However, you need to know which registry values need
+   to be modified in order to affect a particular Administrative Templates setting.
+
+   To find this information, you can either search online, or, if you're running a Windows Vista/2008
+   or later system, you can examine the contents of the .adml and .admx files found in the directory
+   <SystemRoot>\PolicyDefinitions.  This is how the Group Policy Object Editor console determines what
+   settings to display in its console, and how to read or set the values in the registry.pol files.
+
+   The first thing you should do is search the .ADML files in the language directory of your choice.
+   If your language is US English, you'd search the files in the PolicyDefinitions\en-US directory.
+   Inside these files, you'll find the exact strings that are displayed in the Group Policy Object
+   Editor console for each setting.
+
+   For example, if you want to know how to modify the "Limit maximum display resolution" setting
+   for Remote Desktop Services, when you search the folder, you'll find this line in the
+   TerminalServer.ADML file:  <string id="TS_MAXDISPLAYRES">Limit maximum display resolution</string>.
+
+   Next, open the associated .ADMX file (in this case, TerminalServer.ADMX) from <SystemRoot>\PolicyDefinitions,
+   and search for the string ID you found in the ADML file (in this case, TS_MAXDISPLAYRES).  You'll find a <policy>
+   element associated with that displayName.  In this case, it looks like this:
+
+    <policy name="TS_MAXDISPLAYRES" class="Machine" displayName="$(string.TS_MAXDISPLAYRES)" explainText="$(string.TS_MAXDISPLAYRES_EXPLAIN)" presentation="$(presentation.TS_MAXDISPLAYRES)" key="SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services">
+      <parentCategory ref="TS_SESSIONS" />
+      <supportedOn ref="windows:SUPPORTED_Windows7" />
+      <elements>
+        <decimal id="TS_DisplayRes_Width" valueName="MaxXResolution" minValue="640" maxValue="8192" required="true"/>
+        <decimal id="TS_DisplayRes_Height" valueName="MaxYResolution" minValue="480" maxValue="8192" required="true"/>
+      </elements>
+    </policy>
+
+   Not all Policy elements are this simple.  Sometimes they can have different actions for Enabled / Disabled, and so on.
+   You can learn more about ADMX file syntax at https://technet.microsoft.com/en-ca/library/cc753471(v=ws.10).aspx .
+
+   In this case, you can see that two registry values are being modified, named MaxXResolution and MaxYResolution
+   (indicated by the valueName attributes on the two <decimal> elements).  A <decimal> element indicates that the
+   data type will be DWord.
+
+   Armed with that information, you can now do something like this using the PolicyFileEditor module:
+
+   Set-PolicyFileEntry -Path      $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
+                       -Key       'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
+                       -ValueName MaxXResolution `
+                       -Type      DWord `
+                       -Data      1680
+
+   Set-PolicyFileEntry -Path      $env:SystemRoot\system32\GroupPolicy\Machine\registry.pol `
+                       -Key       'SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' `
+                       -ValueName MaxYResolution `
+                       -Type      DWord `
+                       -Data      1050
+
+SEE ALSO
+    Protect-Data
+    Unprotect-Data
+    Add-ProtectedDataCredential
+    Remove-ProtectedDataCredential
+    Get-ProtectedDataSupportedTypes
+    Get-KeyEncryptionCertificate
