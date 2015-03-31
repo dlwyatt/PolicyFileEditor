@@ -151,15 +151,33 @@ function Set-PolicyFileEntry
 
                 ([Microsoft.Win32.RegistryValueKind]::String)
                 {
-                    $string = $Data.ToString()
-                    $policyFile.SetStringValue($Key, $ValueName, $string)
+                    $array = @($Data)
+
+                    if ($array.Count -ne 1)
+                    {
+                        throw 'When -Type is set to String, -Data must be passed a scalar value or single-element array.'
+                    }
+                    else
+                    {
+                        $policyFile.SetStringValue($Key, $ValueName, $array[0].ToString())
+                    }
+
                     break
                 }
 
                 ([Microsoft.Win32.RegistryValueKind]::ExpandString)
                 {
-                    $string = $Data.ToString()
-                    $policyFile.SetStringValue($Key, $ValueName, $string, $true)
+                    $array = @($Data)
+
+                    if ($array.Count -ne 1)
+                    {
+                        throw 'When -Type is set to ExpandString, -Data must be passed a scalar value or single-element array.'
+                    }
+                    else
+                    {
+                        $policyFile.SetStringValue($Key, $ValueName, $array[0].ToString(), $true)
+                    }
+
                     break
                 }
 
@@ -198,7 +216,7 @@ function Set-PolicyFileEntry
                 ([Microsoft.Win32.RegistryValueKind]::MultiString)
                 {
                     $strings = [string[]] @(
-                        foreach ($item in $data)
+                        foreach ($item in @($Data))
                         {
                             $item.ToString()
                         }

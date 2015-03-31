@@ -1,6 +1,6 @@
 @{
     ModuleToProcess         = 'PolicyFileEditor.psm1'
-    ModuleVersion           = '1.2'
+    ModuleVersion           = '1.3'
     GUID                    = '110a2398-3053-4ffc-89d1-1b6a38a2dc86'
     Author                  = 'Dave Wyatt'
     CompanyName             = 'Home'
@@ -36,7 +36,7 @@
             LicenseUri   = 'https://www.apache.org/licenses/LICENSE-2.0.html'
             ProjectUri   = 'https://github.com/dlwyatt/PolicyFileEditor'
             # IconUri      = ''
-            ReleaseNotes = 'Initial release'
+            ReleaseNotes = 'Bug fixes'
         }
     }
 }

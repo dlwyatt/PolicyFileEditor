@@ -273,25 +273,25 @@ try
                 @{
                     TestName = 'Creates a DWord value properly'
                     Type     = [Microsoft.Win32.RegistryValueKind]::DWord
-                    Data     = [UInt32]1
+                    Data     = @([UInt32]1)
                 }
 
                 @{
                     TestName = 'Creates a QWord value properly'
                     Type     = [Microsoft.Win32.RegistryValueKind]::QWord
-                    Data     = [UInt64]0x100000000L
+                    Data     = @([UInt64]0x100000000L)
                 }
 
                 @{
                     TestName = 'Creates a String value properly'
                     Type     = [Microsoft.Win32.RegistryValueKind]::String
-                    Data     = 'I am a string'
+                    Data     = @('I am a string')
                 }
 
                 @{
                     TestName = 'Creates an ExpandString value properly'
                     Type     = [Microsoft.Win32.RegistryValueKind]::ExpandString
-                    Data     = 'My temp path is %TEMP%'
+                    Data     = @('My temp path is %TEMP%')
                 }
 
                 @{
@@ -309,14 +309,14 @@ try
                 @{
                     TestName     = 'Allows hex strings to be assigned to DWord values'
                     Type         = [Microsoft.Win32.RegistryValueKind]::DWord
-                    Data         = '0x12345'
+                    Data         = @('0x12345')
                     ExpectedData = [UInt32]0x12345
                 }
 
                 @{
                     TestName     = 'Allows hex strings to be assigned to QWord values'
                     Type         = [Microsoft.Win32.RegistryValueKind]::QWord
-                    Data         = '0x12345789'
+                    Data         = @('0x12345789')
                     ExpectedData = [Uint64]0x123456789L
                 }
 
@@ -330,14 +330,14 @@ try
                 @{
                     TestName     = 'Allows non-string data to be assigned to String values'
                     Type         = [Microsoft.Win32.RegistryValueKind]::String
-                    Data         = 12345
+                    Data         = @(12345)
                     ExpectedData = '12345'
                 }
 
                 @{
                     TestName     = 'Allows non-string data to be assigned to ExpandString values'
                     Type         = [Microsoft.Win32.RegistryValueKind]::ExpandString
-                    Data         = 12345
+                    Data         = @(12345)
                     ExpectedData = '12345'
                 }
 
