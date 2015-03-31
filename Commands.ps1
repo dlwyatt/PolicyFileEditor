@@ -165,8 +165,9 @@ function Set-PolicyFileEntry
 
                 ([Microsoft.Win32.RegistryValueKind]::DWord)
                 {
-                    $dword = $Data -as [UInt32]
-                    if ($null -eq $dword)
+                    $array = @($Data)
+                    $dword = ($array | Select-Object -First 1) -as [UInt32]
+                    if ($null -eq $dword -or $array.Count -ne 1)
                     {
                         throw 'When -Type is set to DWord, -Data must be passed a valid UInt32 value.'
                     }
@@ -180,8 +181,9 @@ function Set-PolicyFileEntry
 
                 ([Microsoft.Win32.RegistryValueKind]::QWord)
                 {
-                    $qword = $Data -as [UInt64]
-                    if ($null -eq $qword)
+                    $array = @($Data)
+                    $qword = ($array | Select-Object -First 1) -as [UInt64]
+                    if ($null -eq $qword -or $array.Count -ne 1)
                     {
                         throw 'When -Type is set to QWord, -Data must be passed a valid UInt64 value.'
                     }

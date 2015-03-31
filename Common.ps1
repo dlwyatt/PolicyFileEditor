@@ -145,10 +145,37 @@ function SavePolicyFile
             }
             else
             {
-                Write-Warning "File '$iniPath' does not exist, and the -NoGptIniUpdate switch was not specified."
+                if ($PSCmdlet.ShouldProcess($iniPath, 'Create new gpt.ini file'))
+                {
+                    NewGptIni -Path $iniPath -PolicyType $Matches[2]
+                }
             }
         }
     }
+}
+
+function NewGptIni
+{
+    param (
+        [string] $Path,
+        [string[]] $PolicyType
+    )
+
+    $parent = Split-Path $Path -Parent
+
+    if (-not (Test-Path $parent -PathType Container))
+    {
+        $null = New-Item -Path $parent -ItemType Directory -ErrorAction Stop
+    }
+
+    $version = GetNewVersionNumber -Version 0 -PolicyType $PolicyType
+
+    Set-Content -Path $Path -Encoding Ascii -Value @"
+[General]
+gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
+Version=$version
+gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
+"@
 }
 
 function IncrementGptIniVersion
