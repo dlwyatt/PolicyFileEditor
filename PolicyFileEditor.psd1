@@ -1,5 +1,5 @@
 @{
-    RootModule              = 'PolicyFileEditor.psm1'
+    ModuleToProcess         = 'PolicyFileEditor.psm1'
     ModuleVersion           = '1.0'
     GUID                    = '110a2398-3053-4ffc-89d1-1b6a38a2dc86'
     Author                  = 'Dave Wyatt'
