@@ -43,7 +43,7 @@ Task Build -depends Test {
     Where { $file = $_; -not ($filesToExclude | Where { $file.Name -like $_ }) } |
     ForEach {
         $sourceFile = $_
-        $relativePath = Get-RelativePath -Path $sourceFile.FillName -RelativeTo $source
+        $relativePath = Get-RelativePath -Path $sourceFile.FullName -RelativeTo $source
         $targetPath = Join-Path $buildTarget $relativePath
         $parent = Split-Path $targetPath -Parent
 
