@@ -10,7 +10,7 @@ Properties {
 
     $filesToExclude = @(
         'README.md'
-        'PolicyFileEditor.Tests.ps1'
+        '*.Tests.ps1'
         'build.psake.ps1'
     )
 }
@@ -26,6 +26,12 @@ Task Test {
 }
 
 Task Build -depends Test {
+    function Get-RelativePath
+    {
+        param ( [string] $Path, [string] $RelativeTo )
+        return $Path -replace "^$([regex]::Escape($RelativeTo))\\?"
+    }
+
     if (Test-Path -Path $buildTarget -PathType Container)
     {
         Remove-Item -Path $buildTarget -Recurse -Force -ErrorAction Stop
@@ -33,7 +39,21 @@ Task Build -depends Test {
 
     $null = New-Item -Path $buildTarget -ItemType Directory -ErrorAction Stop
 
-    Copy-Item -Path $source\* -Exclude $filesToExclude -Destination $buildTarget -Recurse -ErrorAction Stop
+    Get-ChildItem -Path $source\* -File -Recurse -ErrorAction Stop |
+    Where { $file = $_; -not ($filesToExclude | Where { $file.Name -like $_ }) } |
+    ForEach {
+        $sourceFile = $_
+        $relativePath = Get-RelativePath -Path $sourceFile.FillName -RelativeTo $source
+        $targetPath = Join-Path $buildTarget $relativePath
+        $parent = Split-Path $targetPath -Parent
+
+        if (-not (Test-Path -LiteralPath $parent -PathType Container))
+        {
+            $null = New-Item -Path $parent -ItemType Directory -ErrorAction Stop
+        }
+
+        Copy-Item -LiteralPath $sourceFile.FullName -Destination $targetPath -ErrorAction Stop
+    }
 }
 
 Task Sign {
