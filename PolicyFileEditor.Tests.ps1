@@ -143,8 +143,8 @@ try
                         New-Object psobject -Property @{
                             Key       = 'Software\Testing'
                             ValueName = 'Value2'
-                            Type      = 'String'
-                            Data      = 'Data'
+                            Type      = 'MultiString'
+                            Data      = 'Multi', 'String', 'Data'
                         }
                     )
                 }
@@ -388,6 +388,45 @@ try
                     $Data[$i] | Should BeExactly $newData[$i]
                 }
 
+            }
+
+            It 'Gets values by Key and PropertyName successfully' {
+                $polPath   = Join-Path $gpoPath Machine\registry.pol
+                $key       = 'Software\Testing'
+                $valueName = 'TestValue'
+                $data      = 'I am a string'
+                $type      = ([Microsoft.Win32.RegistryValueKind]::String)
+
+                $scriptBlock = {
+                    Set-PolicyFileEntry -Path      $polPath `
+                                        -Key       $key `
+                                        -ValueName $valueName `
+                                        -Data      $data `
+                                        -Type      $type
+                }
+
+                $scriptBlock | Should Not Throw
+
+                $entry = Get-PolicyFileEntry -Path $polPath -Key $key -ValueName $valueName
+
+                $entry | Should Not Be $null
+                $entry.ValueName | Should Be $valueName
+                $entry.Key | Should Be $key
+                $entry.Type | Should Be $type
+                $entry.Data | Should Be $data
+            }
+        }
+
+        Context 'Automatic creation of gpt.ini' {
+            It 'Creates a gpt.ini file if one is not found' {
+                Remove-Item $gptIniPath
+
+                $path = Join-Path $gpoPath Machine\registry.pol
+
+                Set-PolicyFileEntry -Path $path -Key 'Whatever' -ValueName 'Whatever' -Data 'Whatever' -Type String
+
+                $gptIniPath | Should Exist
+                GetGptIniVersion -Path $gptIniPath | Should Be 1
             }
         }
     }
