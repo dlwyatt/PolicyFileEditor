@@ -90,7 +90,7 @@ Task Sign {
 
     if ($signerTimestampUrl) { $splat['TimestampServer'] = $signerTimestampUrl }
 
-    Get-ChildItem -Path $buildTarget -Recurse -File -Include *.ps1, *.psm1, *.psd1, *.dll |
+    Get-ChildItem -Path $buildTarget -Recurse -File -Include *.ps1, *.psm1, *.psd1 |
     Set-AuthenticodeSignature @splat -ErrorAction Stop |
     Format-Table -Property $properties -AutoSize
 }
