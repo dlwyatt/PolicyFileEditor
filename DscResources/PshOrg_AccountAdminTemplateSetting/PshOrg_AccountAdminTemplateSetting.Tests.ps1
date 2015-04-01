@@ -11,7 +11,7 @@ we'll just unit test the GetPolFilePath function instead.
 
 Describe 'GetPolFilePath with -Account parameter' {
     It 'Returns the proper path for a well-known SID' {
-        $actual = GetPolFilePath -Account 'BUILTIN\Administrators'
+        $actual = GetPolFilePath -Account BUILTIN\Administrators
         $expected = Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-544\User\registry.pol
         $actual | Should Be $expected
     }
@@ -27,6 +27,12 @@ Describe 'GetPolFilePath with -Account parameter' {
         $actual = GetPolFilePath -Account $user.Name[0]
         $expected = Join-Path $env:SystemRoot System32\GroupPolicyUsers\$($sid.Value)\User\registry.pol
 
+        $actual | Should Be $expected
+    }
+
+    It 'Allows a SID string to be passed directly' {
+        $actual = GetPolFilePath -Account S-1-5-32-544
+        $expected = Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-544\User\registry.pol
         $actual | Should Be $expected
     }
 }
