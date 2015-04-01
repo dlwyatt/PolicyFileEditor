@@ -404,32 +404,82 @@ function PolEntryTypeToRegistryValueKind
 function GetPolFilePath
 {
     param (
-        [string] $PolicyType
+        [Parameter(Mandatory = $true, ParameterSetName = 'PolicyType')]
+        [string] $PolicyType,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Account')]
+        [string] $Account
     )
 
-    switch ($PolicyType)
+    if ($PolicyType)
     {
-        'Machine'
+        switch ($PolicyType)
         {
-            return Join-Path $env:SystemRoot System32\GroupPolicy\Machine\registry.pol
-        }
+            'Machine'
+            {
+                return Join-Path $env:SystemRoot System32\GroupPolicy\Machine\registry.pol
+            }
 
-        'User'
-        {
-            return Join-Path $env:SystemRoot System32\GroupPolicy\User\registry.pol
-        }
+            'User'
+            {
+                return Join-Path $env:SystemRoot System32\GroupPolicy\User\registry.pol
+            }
 
-        'Administrators'
-        {
-            # BUILTIN\Administrators well-known SID
-            return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-544\User\registry.pol
-        }
+            'Administrators'
+            {
+                # BUILTIN\Administrators well-known SID
+                return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-544\User\registry.pol
+            }
 
-        'NonAdministrators'
-        {
-            # BUILTIN\Users well-known SID
-            return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-545\User\registry.pol
+            'NonAdministrators'
+            {
+                # BUILTIN\Users well-known SID
+                return Join-Path $env:SystemRoot System32\GroupPolicyUsers\S-1-5-32-545\User\registry.pol
+            }
         }
+    }
+    else
+    {
+        try
+        {
+            $sid = $Account -as [System.Security.Principal.SecurityIdentifier]
+
+            if ($null -eq $sid)
+            {
+                $sid = GetSidForAccount $Account
+            }
+
+            return Join-Path $env:SystemRoot "System32\GroupPolicyUsers\$($sid.Value)\User\registry.pol"
+        }
+        catch
+        {
+            throw
+        }
+    }
+}
+
+function GetSidForAccount($Account)
+{
+    $acc = $Account
+    if ($acc -notlike '*\*') { $acc = "$env:COMPUTERNAME\$acc" }
+
+    try
+    {
+        $ntAccount = [System.Security.Principal.NTAccount]$acc
+        return $ntAccount.Translate([System.Security.Principal.SecurityIdentifier])
+    }
+    catch
+    {
+        $message = "Could not translate account '$acc' to a security identifier."
+        $exception = New-Object System.Exception($message, $_.Exception)
+        $errorRecord = New-Object System.Management.Automation.ErrorRecord(
+            $exception,
+            'CouldNotGetSidForAccount',
+            [System.Management.Automation.ErrorCategory]::ObjectNotFound,
+            $Acc
+        )
+
+        $PSCmdlet.ThrowTerminatingError($errorRecord)
     }
 }
 
@@ -482,4 +532,129 @@ function ParseKeyValueName
     }
 
     return $key, $valueName
+}
+
+function GetTargetResourceCommon
+{
+    param (
+        [string] $Path,
+        [string] $KeyValueName
+    )
+
+    $configuration = @{
+        PolicyType   = $PolicyType
+        KeyValueName = $KeyValueName
+        Ensure       = 'Absent'
+        Data         = $null
+        Type         = [Microsoft.Win32.RegistryValueKind]::Unknown
+    }
+
+    if (Test-Path -LiteralPath $path -PathType Leaf)
+    {
+        $key, $valueName = ParseKeyValueName $KeyValueName
+        $entry = Get-PolicyFileEntry -Path $Path -Key $key -ValueName $valueName
+
+        if ($entry)
+        {
+            $configuration['Ensure'] = 'Present'
+            $configuration['Type']   = $entry.Type
+            $configuration['Data']   = $entry.Data
+        }
+    }
+
+    return $configuration
+}
+
+function SetTargetResourceCommon
+{
+    param (
+        [string] $Path,
+        [string] $KeyValueName,
+        [string] $Ensure,
+        [string[]] $Data,
+        [Microsoft.Win32.RegistryValueKind] $Type
+    )
+
+    if ($null -eq $Data) { $Data = @() }
+
+    try
+    {
+        Assert-ValidDataAndType -Data $Data -Type $Type
+    }
+    catch
+    {
+        Write-Error -ErrorRecord $_
+        return
+    }
+
+    $key, $valueName = ParseKeyValueName $KeyValueName
+
+    if ($Ensure -eq 'Present')
+    {
+        Set-PolicyFileEntry -Path $Path -Key $key -ValueName $valueName -Data $Data -Type $Type
+    }
+    else
+    {
+        Remove-PolicyFileEntry -Path $Path -Key $key -ValueName $valueName
+    }
+}
+
+function TestTargetResourceCommon
+{
+    [OutputType([bool])]
+    param (
+        [string] $Path,
+        [string] $KeyValueName,
+        [string] $Ensure,
+        [string[]] $Data,
+        [Microsoft.Win32.RegistryValueKind] $Type
+    )
+
+    if ($null -eq $Data) { $Data = @() }
+
+    try
+    {
+        Assert-ValidDataAndType -Data $Data -Type $Type
+    }
+    catch
+    {
+        Write-Error -ErrorRecord $_
+        return $false
+    }
+
+    $key, $valueName = ParseKeyValueName $KeyValueName
+
+    $fileExists = Test-Path -LiteralPath $Path -PathType Leaf
+
+    if ($Ensure -eq 'Present')
+    {
+        if (-not $fileExists) { return $false }
+        $entry = Get-PolicyFileEntry -Path $Path -Key $key -ValueName $valueName
+
+        return $null -ne $entry -and $Type -eq $entry.Type -and (DataIsEqual $entry.Data $Data -Type $Type)
+    }
+    else # Ensure is 'Absent'
+    {
+        if (-not $fileExists) { return $true }
+        $entry = Get-PolicyFileEntry -Path $Path -Key $key -ValueName $valueName
+
+        return $null -eq $entry
+    }
+
+}
+
+function Assert-ValidDataAndType
+{
+    param (
+        [string[]] $Data,
+        [Microsoft.Win32.RegistryValueKind] $Type
+    )
+
+    if ($Type -ne [Microsoft.Win32.RegistryValueKind]::MultiString -and
+        $Type -ne [Microsoft.Win32.RegistryValueKind]::Binary -and
+        $Data.Count -gt 1)
+    {
+        throw 'Do not pass arrays with multiple values to the -Data parameter when -Type is not set to either Binary or MultiString.'
+    }
+
 }

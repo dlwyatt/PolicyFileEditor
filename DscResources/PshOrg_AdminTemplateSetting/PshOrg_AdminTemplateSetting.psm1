@@ -13,29 +13,16 @@ function Get-TargetResource
         [string] $KeyValueName
     )
 
-    $configuration = @{
-        PolicyType   = $PolicyType
-        KeyValueName = $KeyValueName
-        Ensure       = 'Absent'
-        Data         = $null
-        Type         = [Microsoft.Win32.RegistryValueKind]::Unknown
-    }
-
-    $path = GetPolFilePath -PolicyType $PolicyType
-    if (Test-Path -LiteralPath $path -PathType Leaf)
+    try
     {
-        $key, $valueName = ParseKeyValueName $KeyValueName
-        $entry = Get-PolicyFileEntry -Path $path -Key $key -ValueName $valueName
-
-        if ($entry)
-        {
-            $configuration['Ensure'] = 'Present'
-            $configuration['Type']   = $entry.Type
-            $configuration['Data']   = $entry.Data
-        }
+        $path = GetPolFilePath -PolicyType $PolicyType
+        return GetTargetResourceCommon -Path $path -KeyValueName $KeyValueName
     }
-
-    return $configuration
+    catch
+    {
+        Write-Error -ErrorRecord $_
+        return
+    }
 }
 
 function Set-TargetResource
@@ -56,28 +43,15 @@ function Set-TargetResource
         [Microsoft.Win32.RegistryValueKind] $Type = [Microsoft.Win32.RegistryValueKind]::String
     )
 
-    if ($null -eq $Data) { $Data = @() }
-
     try
     {
-        Assert-ValidDataAndType -Data $Data -Type $Type
+        $path = GetPolFilePath -PolicyType $PolicyType
+        SetTargetResourceCommon -Path $path -KeyValueName $KeyValueName -Ensure $Ensure -Data $Data -Type $Type
     }
     catch
     {
         Write-Error -ErrorRecord $_
         return
-    }
-
-    $path = GetPolFilePath -PolicyType $PolicyType
-    $key, $valueName = ParseKeyValueName $KeyValueName
-
-    if ($Ensure -eq 'Present')
-    {
-        Set-PolicyFileEntry -Path $path -Key $key -ValueName $valueName -Data $Data -Type $Type
-    }
-    else
-    {
-        Remove-PolicyFileEntry -Path $path -Key $key -ValueName $valueName
     }
 }
 

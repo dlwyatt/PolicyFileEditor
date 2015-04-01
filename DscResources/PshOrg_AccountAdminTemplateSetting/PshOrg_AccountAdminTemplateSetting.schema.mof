@@ -1,0 +1,10 @@
+[ClassVersion("1"), FriendlyName("cAccountAdministrativeTemplateSetting")]
+class PshOrg_AccountAdminTemplateSetting : OMI_BaseResource
+{
+[Key] string Account;
+[Key] string KeyValueName;
+[write,ValueMap{"Present", "Absent"},Values{"Present", "Absent"}] string Ensure;
+[write] string Data[];
+[write,ValueMap{"0","1","2","3","4","7","11","-1"},Values{"Unknown","String","ExpandString","Binary","DWord","MultiString","QWord","None"}] sint32 Type;
+};
+
