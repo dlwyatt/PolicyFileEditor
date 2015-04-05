@@ -111,7 +111,15 @@ function Set-PolicyFileEntry
         }
 
         $dirty = $false
-        $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+
+        try
+        {
+            $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
     }
 
     process
@@ -139,7 +147,8 @@ function Set-PolicyFileEntry
                     $bytes = $Data -as [byte[]]
                     if ($null -eq $bytes)
                     {
-                        throw 'When -Type is set to Binary, -Data must be passed a Byte[] array.'
+                        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'When -Type is set to Binary, -Data must be passed a Byte[] array.'
+                        $PSCmdlet.ThrowTerminatingError($errorRecord)
                     }
                     else
                     {
@@ -155,7 +164,8 @@ function Set-PolicyFileEntry
 
                     if ($array.Count -ne 1)
                     {
-                        throw 'When -Type is set to String, -Data must be passed a scalar value or single-element array.'
+                        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'When -Type is set to String, -Data must be passed a scalar value or single-element array.'
+                        $PSCmdlet.ThrowTerminatingError($errorRecord)
                     }
                     else
                     {
@@ -171,7 +181,8 @@ function Set-PolicyFileEntry
 
                     if ($array.Count -ne 1)
                     {
-                        throw 'When -Type is set to ExpandString, -Data must be passed a scalar value or single-element array.'
+                        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'When -Type is set to ExpandString, -Data must be passed a scalar value or single-element array.'
+                        $PSCmdlet.ThrowTerminatingError($errorRecord)
                     }
                     else
                     {
@@ -187,7 +198,8 @@ function Set-PolicyFileEntry
                     $dword = ($array | Select-Object -First 1) -as [UInt32]
                     if ($null -eq $dword -or $array.Count -ne 1)
                     {
-                        throw 'When -Type is set to DWord, -Data must be passed a valid UInt32 value.'
+                        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'When -Type is set to DWord, -Data must be passed a valid UInt32 value.'
+                        $PSCmdlet.ThrowTerminatingError($errorRecord)
                     }
                     else
                     {
@@ -203,7 +215,8 @@ function Set-PolicyFileEntry
                     $qword = ($array | Select-Object -First 1) -as [UInt64]
                     if ($null -eq $qword -or $array.Count -ne 1)
                     {
-                        throw 'When -Type is set to QWord, -Data must be passed a valid UInt64 value.'
+                        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'When -Type is set to QWord, -Data must be passed a valid UInt64 value.'
+                        $PSCmdlet.ThrowTerminatingError($errorRecord)
                     }
                     else
                     {
@@ -243,9 +256,16 @@ function Set-PolicyFileEntry
         {
             $doUpdateGptIni = -not $NoGptIniUpdate
 
-            # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
-            # WhatIfPreference / ConfirmPreference values from here.
-            SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+            try
+            {
+                # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
+                # WhatIfPreference / ConfirmPreference values from here.
+                SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+            }
+            catch
+            {
+                $PSCmdlet.ThrowTerminatingError($_)
+            }
         }
     }
 }
@@ -313,7 +333,14 @@ function Get-PolicyFileEntry
         Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
     }
 
-    $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+    try
+    {
+        $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+    }
+    catch
+    {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
 
     if ($PSCmdlet.ParameterSetName -eq 'ByKeyAndValue')
     {
@@ -406,7 +433,15 @@ function Remove-PolicyFileEntry
         }
 
         $dirty = $false
-        $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+
+        try
+        {
+            $policyFile = OpenPolicyFile -Path $Path -ErrorAction Stop
+        }
+        catch
+        {
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
     }
 
     process
@@ -430,9 +465,16 @@ function Remove-PolicyFileEntry
         {
             $doUpdateGptIni = -not $NoGptIniUpdate
 
-            # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
-            # WhatIfPreference / ConfirmPreference values from here.
-            SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+            try
+            {
+                # SavePolicyFile contains the calls to $PSCmdlet.ShouldProcess, and will inherit our
+                # WhatIfPreference / ConfirmPreference values from here.
+                SavePolicyFile -PolicyFile $policyFile -UpdateGptIni:$doUpdateGptIni -ErrorAction Stop
+            }
+            catch
+            {
+                $PSCmdlet.ThrowTerminatingError($_)
+            }
         }
     }
 }
@@ -502,5 +544,12 @@ function Update-GptIniVersion
         Get-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
     }
 
-    IncrementGptIniVersion @PSBoundParameters
+    try
+    {
+        IncrementGptIniVersion @PSBoundParameters
+    }
+    catch
+    {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
 }

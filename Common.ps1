@@ -17,12 +17,28 @@ function OpenPolicyFile
         {
             $policyFile.LoadFile()
         }
+        catch [TJX.PolFileEditor.FileFormatException]
+        {
+            $message = "File '$Path' is not a valid POL file."
+            $exception = New-Object System.Exception($message)
+
+            $errorRecord = New-Object System.Management.Automation.ErrorRecord(
+                $exception, 'InvalidPolFileContents', [System.Management.Automation.ErrorCategory]::InvalidData, $Path
+            )
+
+            throw $errorRecord
+        }
         catch
         {
             $errorRecord = $_
             $message = "Error loading policy file at path '$Path': $($errorRecord.Exception.Message)"
             $exception = New-Object System.Exception($message, $errorRecord.Exception)
-            throw $exception
+
+            $newErrorRecord = New-Object System.Management.Automation.ErrorRecord(
+                $exception, 'FailedToOpenPolicyFile', [System.Management.Automation.ErrorCategory]::OperationStopped, $Path
+            )
+
+            throw $newErrorRecord
         }
     }
 
@@ -112,7 +128,12 @@ function SavePolicyFile
                 $errorRecord = $_
                 $message = "Error creating parent folder of path '$Path': $($errorRecord.Exception.Message)"
                 $exception = New-Object System.Exception($message, $errorRecord.Exception)
-                throw $exception
+
+                $newErrorRecord = New-Object System.Management.Automation.ErrorRecord(
+                    $exception, 'CreateParentFolderError', $errorRecord.CategoryInfo.Category, $Path
+                )
+
+                throw $newErrorRecord
             }
         }
 
@@ -125,7 +146,12 @@ function SavePolicyFile
             $errorRecord = $_
             $message = "Error saving policy file to path '$($PolicyFile.FileName)': $($errorRecord.Exception.Message)"
             $exception = New-Object System.Exception($message, $errorRecord.Exception)
-            throw $exception
+
+            $newErrorRecord = New-Object System.Management.Automation.ErrorRecord(
+                $exception, 'FailedToSavePolicyFile', [System.Management.Automation.ErrorCategory]::OperationStopped, $PolicyFile
+            )
+
+            throw $newErrorRecord
         }
     }
 
@@ -479,7 +505,7 @@ function GetSidForAccount($Account)
             $Acc
         )
 
-        $PSCmdlet.ThrowTerminatingError($errorRecord)
+        throw $errorRecord
     }
 }
 
@@ -654,7 +680,15 @@ function Assert-ValidDataAndType
         $Type -ne [Microsoft.Win32.RegistryValueKind]::Binary -and
         $Data.Count -gt 1)
     {
-        throw 'Do not pass arrays with multiple values to the -Data parameter when -Type is not set to either Binary or MultiString.'
+        $errorRecord = InvalidDataTypeCombinationErrorRecord -Message 'Do not pass arrays with multiple values to the -Data parameter when -Type is not set to either Binary or MultiString.'
+        throw $errorRecord
     }
+}
 
+function InvalidDataTypeCombinationErrorRecord($Message)
+{
+    $exception = New-Object System.Exception($Message)
+    return New-Object System.Management.Automation.ErrorRecord(
+        $exception, 'InvalidDataTypeCombination', [System.Management.Automation.ErrorCategory]::InvalidArgument, $null
+    )
 }
