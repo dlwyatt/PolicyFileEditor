@@ -83,9 +83,10 @@ Task Sign {
     )
 
     $splat = @{
-        Certificate  = $cert
-        IncludeChain = 'All'
-        Force        = $true
+        Certificate   = $cert
+        IncludeChain  = 'All'
+        Force         = $true
+        HashAlgorithm = 'SHA256'
     }
 
     if ($signerTimestampUrl) { $splat['TimestampServer'] = $signerTimestampUrl }
