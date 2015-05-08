@@ -9,6 +9,8 @@ try
 
     InModuleScope $module.Name {
         Describe 'Get-TargetResource' {
+            Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like "$env:SystemRoot\system32\GroupPolicy\*\registry.pol" }
+
             Context 'When the value is present' {
                 $key       = 'Software\Testing'
                 $valueName = 'TestValue'
@@ -65,6 +67,8 @@ try
                 data      = [uint32]12345
                 type      = [Microsoft.Win32.RegistryValueKind]::DWord
             }
+
+            Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like "$env:SystemRoot\system32\GroupPolicy\*\registry.pol" }
 
             Mock Get-PolicyFileEntry {
                 return New-Object psobject -Property @{
@@ -129,6 +133,7 @@ try
                 type      = [Microsoft.Win32.RegistryValueKind]::DWord
             }
 
+            Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like "$env:SystemRoot\system32\GroupPolicy\*\registry.pol" }
             Mock Set-PolicyFileEntry
             Mock Remove-PolicyFileEntry
 
