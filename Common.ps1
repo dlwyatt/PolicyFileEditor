@@ -200,7 +200,7 @@ function NewGptIni
 [General]
 gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
 Version=$version
-gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
+gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]
 "@
 }
 
@@ -319,10 +319,19 @@ function EnsureAdminTemplateCseGuidsArePresent
     $valueName = $matches[1]
     $guidStrings = @($matches[2] -split '(?<=})(?={)')
 
+    if ($matches[1] -eq 'gPCMachineExtensionNames')
+    {
+        $toolExtensionGuid = '{D02B1F72-3407-48AE-BA88-E8213C6761F1}'
+    }
+    else
+    {
+        $toolExtensionGuid = '{D02B1F73-3407-48AE-BA88-E8213C6761F1}'
+    }
+
     $guidList = @(
         $guidStrings
         '{35378EAC-683F-11D2-A89A-00C04FBBCFA2}'
-        '{D02B1F72-3407-48AE-BA88-E8213C6761F1}'
+        $toolExtensionGuid
     )
 
     $newGuidString = ($guidList | Sort-Object -Unique) -join ''
