@@ -1,3 +1,5 @@
+__Build Status:__ [![Build status](https://build.powershell.org/guestAuth/app/rest/builds/buildType:(id:PolicyFileEditor_PublishStatusToGitHub)/statusIcon)](https://build.powershell.org/project.html?projectId=PolicyFileEditor&tab=projectOverview&guest=1)
+
 # PolicyFileEditor
 PowerShell functions and DSC resource wrappers around the TJX.PolFileEditor.PolFile .NET class.
 
