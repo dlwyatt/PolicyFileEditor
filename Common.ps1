@@ -1,5 +1,8 @@
 #requires -Version 2.0
 
+$script:MachineExtensionGuids = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'
+$script:UserExtensionGuids    = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]'
+
 function OpenPolicyFile
 {
     [CmdletBinding()]
@@ -198,9 +201,9 @@ function NewGptIni
 
     Set-Content -Path $Path -Encoding Ascii -Value @"
 [General]
-gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
+gPCMachineExtensionNames=$script:MachineExtensionGuids
 Version=$version
-gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]
+gPCUserExtensionNames=$script:UserExtensionGuids
 "@
 }
 
@@ -235,13 +238,13 @@ function IncrementGptIniVersion
                     if (-not $foundMachineExtensionLine)
                     {
                         $foundMachineExtensionLine = $true
-                        'gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'
+                        "gPCMachineExtensionNames=$script:MachineExtensionGuids"
                     }
 
                     if (-not $foundUserExtensionLine)
                     {
                         $foundUserExtensionLine = $true
-                        'gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]'
+                        "gPCUserExtensionNames=$script:UserExtensionGuids"
                     }
                 }
 
@@ -285,13 +288,13 @@ function IncrementGptIniVersion
             if (-not $foundMachineExtensionLine)
             {
                 $foundMachineExtensionLine = $true
-                'gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'
+                "gPCMachineExtensionNames=$script:MachineExtensionGuids"
             }
 
             if (-not $foundUserExtensionLine)
             {
                 $foundUserExtensionLine = $true
-                'gPCUserExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]'
+                "gPCUserExtensionNames=$script:MachineExtensionGuids"
             }
         }
     )
@@ -306,37 +309,38 @@ function EnsureAdminTemplateCseGuidsArePresent
 {
     param ([string] $Line)
 
-    # These lines contain lists of GUIDs in "registry" format (with the curly braces), separated by nothing, wrapped in a pair of square brackets.  Ex:
+    # These lines contain pairs of GUIDs in "registry" format (with the curly braces), separated by nothing, with
+    # each pair of GUIDs wrapped in square brackets.  Example:
+
     # gPCMachineExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]
 
     # Per Darren Mar-Elia, these GUIDs must be in alphabetical order, or GP processing will have problems.
 
-    if ($Line -notmatch '\s*(gPC(?:Machine|User)ExtensionNames)\s*=\s*\[([^\]]*)\]\s*$')
+    if ($Line -notmatch '\s*(gPC(?:Machine|User)ExtensionNames)\s*=\s*(.*)$')
     {
         throw "Malformed gpt.ini line: $Line"
     }
 
     $valueName = $matches[1]
-    $guidStrings = @($matches[2] -split '(?<=})(?={)')
+    $guidStrings = @($matches[2] -split '(?<=\])(?=\[)')
 
     if ($matches[1] -eq 'gPCMachineExtensionNames')
     {
-        $toolExtensionGuid = '{D02B1F72-3407-48AE-BA88-E8213C6761F1}'
+        $toolExtensionGuid = $script:MachineExtensionGuids
     }
     else
     {
-        $toolExtensionGuid = '{D02B1F73-3407-48AE-BA88-E8213C6761F1}'
+        $toolExtensionGuid = $script:UserExtensionGuids
     }
 
     $guidList = @(
         $guidStrings
-        '{35378EAC-683F-11D2-A89A-00C04FBBCFA2}'
         $toolExtensionGuid
     )
 
     $newGuidString = ($guidList | Sort-Object -Unique) -join ''
 
-    return "$valueName=[$newGuidString]"
+    return "$valueName=$newGuidString"
 }
 
 function GetNewVersionNumber
