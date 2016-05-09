@@ -581,7 +581,6 @@ function GetTargetResourceCommon
     )
 
     $configuration = @{
-        PolicyType   = $PolicyType
         KeyValueName = $KeyValueName
         Ensure       = 'Absent'
         Data         = $null
@@ -597,7 +596,7 @@ function GetTargetResourceCommon
         {
             $configuration['Ensure'] = 'Present'
             $configuration['Type']   = $entry.Type
-            $configuration['Data']   = $entry.Data
+            $configuration['Data']   = @($entry.Data)
         }
     }
 

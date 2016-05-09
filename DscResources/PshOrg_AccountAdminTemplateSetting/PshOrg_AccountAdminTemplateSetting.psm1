@@ -15,7 +15,11 @@ function Get-TargetResource
     try
     {
         $path = GetPolFilePath -Account $Account -ErrorAction Stop
-        return GetTargetResourceCommon -Path $path -KeyValueName $KeyValueName
+
+        $hashTable = GetTargetResourceCommon -Path $path -KeyValueName $KeyValueName
+        $hashTable['Account'] = $Account
+
+        return $hashTable
     }
     catch
     {
