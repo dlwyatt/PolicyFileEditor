@@ -16,7 +16,10 @@ function Get-TargetResource
     try
     {
         $path = GetPolFilePath -PolicyType $PolicyType
-        return GetTargetResourceCommon -Path $path -KeyValueName $KeyValueName
+        $hashTable = GetTargetResourceCommon -Path $path -KeyValueName $KeyValueName
+        $hashTable['PolicyType'] = $PolicyType
+
+        return $hashTable
     }
     catch
     {
