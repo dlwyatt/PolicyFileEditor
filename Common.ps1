@@ -566,8 +566,9 @@ function ParseKeyValueName
     }
     else
     {
-        $key       = Split-Path $KeyValueName -Parent
-        $valueName = Split-Path $KeyValueName -Leaf
+        $KeyValueNameArray = $KeyValueName.split("\")
+        $key               = $KeyValueNameArray[0..($KeyValueNameArray.Count-2)] -join "\"
+        $valueName         = $KeyValueNameArray[-1]
     }
 
     return $key, $valueName
