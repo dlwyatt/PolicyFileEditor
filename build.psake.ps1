@@ -5,7 +5,7 @@ Task default -depends Build,Sign
 Properties {
     $source               = $psake.build_script_dir
     $buildTarget          = "$home\Documents\WindowsPowerShell\Modules\PolicyFileEditor"
-    $signerCertThumbprint = '20164DCA86BDFBB5B345AF85F5DB54E9AFFA3F30'
+    $signerCertThumbprint = '572DD922FB11FD90D47EE466EDF4191019FB19FA'
     $signerTimestampUrl   = 'http://timestamp.digicert.com'
 
     $filesToExclude = @(
