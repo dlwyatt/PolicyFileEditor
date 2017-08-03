@@ -1,4 +1,4 @@
-[ClassVersion("1"), FriendlyName("cAdministrativeTemplateSetting")]
+[ClassVersion("2"), FriendlyName("cAdministrativeTemplateSetting")]
 class PshOrg_AdminTemplateSetting : OMI_BaseResource
 {
 [Key,ValueMap{"Machine", "User", "Administrators", "NonAdministrators"},Values{"Machine", "User", "Administrators", "NonAdministrators"}] string PolicyType;
