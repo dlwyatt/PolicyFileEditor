@@ -559,16 +559,13 @@ function ParseKeyValueName
 {
     param ([string] $KeyValueName)
 
-    if ($KeyValueName.EndsWith('\'))
+    $key = $KeyValueName -replace '^\\+|\\+$'
+    $valueName = ''
+
+    if ($KeyValueName -match '^\\*(?<Key>.+?)\\+(?<ValueName>[^\\]*)$')
     {
-        $key       = $KeyValueName -replace '\\$'
-        $valueName = ''
-    }
-    else
-    {
-        $KeyValueNameArray = $KeyValueName.split("\")
-        $key               = $KeyValueNameArray[0..($KeyValueNameArray.Count-2)] -join "\"
-        $valueName         = $KeyValueNameArray[-1]
+        $key = $matches['Key'] -replace '\\{2,}', '\'
+        $valueName = $matches['ValueName']
     }
 
     return $key, $valueName

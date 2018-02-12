@@ -50,6 +50,62 @@ try
     $gpoPath = 'TestDrive:\TestGpo'
     $gptIniPath = "$gpoPath\gpt.ini"
 
+    Describe 'KeyValueName parsing' {
+        InModuleScope PolicyFileEditor {
+            $testCases = @(
+                @{
+                    KeyValueName  = 'Left\Right'
+                    ExpectedKey   = 'Left'
+                    ExpectedValue = 'Right'
+                    Description   = 'Simple'
+                }
+
+                @{
+                    KeyValueName  = 'Left\\Right'
+                    ExpectedKey   = 'Left'
+                    ExpectedValue = 'Right'
+                    Description   = 'Multiple consecutive separators'
+                }
+
+                @{
+                    KeyValueName  = '\Left\Right'
+                    ExpectedKey   = 'Left'
+                    ExpectedValue = 'Right'
+                    Description   = 'Leading separator'
+                }
+
+                @{
+                    KeyValueName  = 'Left\Right\'
+                    ExpectedKey   = 'Left\Right'
+                    ExpectedValue = ''
+                    Description   = 'Trailing separator'
+                }
+
+                @{
+                    KeyValueName  = '\\\Left\\\\Right\\\\\'
+                    ExpectedKey   = 'Left\Right'
+                    ExpectedValue = ''
+                    Description   = 'Ridiculous with trailing separator'
+                }
+
+                @{
+                    KeyValueName  = '\\\\\\\\Left\\\\\\\Right'
+                    ExpectedKey   = 'Left'
+                    ExpectedValue = 'Right'
+                    Description   = 'Ridiculous with no trailing separator'
+                }
+            )
+
+            It -TestCases $testCases 'Properly parses KeyValueName with <Description>' {
+                param ($KeyValueName, $ExpectedKey, $ExpectedValue)
+                $key, $valueName = ParseKeyValueName $KeyValueName
+
+                $key | Should Be $ExpectedKey
+                $valueName | Should Be $ExpectedValue
+            }
+        }
+    }
+
     Describe 'Happy Path' {
         BeforeEach {
             CreateDefaultGpo -Path $gpoPath
