@@ -1,6 +1,6 @@
 @{
     ModuleToProcess         = 'PolicyFileEditor.psm1'
-    ModuleVersion           = '3.0.0'
+    ModuleVersion           = '3.0.1'
     GUID                    = '110a2398-3053-4ffc-89d1-1b6a38a2dc86'
     Author                  = 'Dave Wyatt'
     CompanyName             = 'Home'
