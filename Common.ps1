@@ -294,7 +294,7 @@ function IncrementGptIniVersion
             if (-not $foundUserExtensionLine)
             {
                 $foundUserExtensionLine = $true
-                "gPCUserExtensionNames=$script:MachineExtensionGuids"
+                "gPCUserExtensionNames=$script:UserExtensionGuids"
             }
         }
     )
